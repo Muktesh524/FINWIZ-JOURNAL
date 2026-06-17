@@ -1,0 +1,374 @@
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      FinWiz Journal Project Structure                        │
+│                           Version 1.0 (Phase 1)                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+finwizjournal/
+│
+├── 📄 README.md                          (Project overview & features)
+├── 📄 SETUP.md                           (Installation & usage guide)
+├── 📄 PROJECT_SUMMARY.md                 (Complete project summary)
+├── 📄 STRUCTURE.txt                      (This file)
+│
+├── 📋 requirements.txt                   (Python dependencies)
+├── 🚀 run.bat                            (Windows quick-start)
+├── 🐧 run.sh                             (macOS/Linux quick-start)
+├── .gitignore                            (Git ignore rules)
+│
+├── 🎯 app.py                             (Main Streamlit application)
+│
+├── 📁 modules/                           (Core Python modules)
+│   ├── __init__.py                       (Package initialization)
+│   ├── 📰 news_fetcher.py               (RSS feed fetching)
+│   │   ├── NewsFetcher class
+│   │   ├── fetch_all_news()             (Fetch from all feeds)
+│   │   ├── fetch_from_feed()            (Fetch from single feed)
+│   │   ├── Supports 4 RSS sources
+│   │   └── Auto duplicate handling
+│   │
+│   ├── 📈 market_data.py                (Market data fetching)
+│   │   ├── MarketDataFetcher class
+│   │   ├── fetch_market_data()          (Get stock prices)
+│   │   ├── get_nifty_movers()           (Top gainers/losers)
+│   │   ├── get_sector_performance()     (Sector data)
+│   │   └── Supports 8+ symbols
+│   │
+│   ├── 🗄️  database.py                  (SQLite operations)
+│   │   ├── JournalDB class
+│   │   ├── _init_db()                   (Create schema)
+│   │   ├── add_news()                   (Insert news)
+│   │   ├── add_market_data()            (Insert prices)
+│   │   ├── get_approved_news()          (Query approved)
+│   │   ├── approve_news()               (Update status)
+│   │   ├── get_stats()                  (Database stats)
+│   │   └── 3 tables: news_articles, market_data, generated_journals
+│   │
+│   └── 📄 journal_generator.py          (HTML generation)
+│       ├── JournalGenerator class
+│       ├── generate_journal()           (Create HTML file)
+│       ├── generate_preview()           (HTML preview)
+│       ├── render_news_section()        (News rendering)
+│       └── render_market_section()      (Market rendering)
+│
+├── 🎨 templates/                        (Jinja2 HTML templates)
+│   ├── base.html                        (Base template & styling)
+│   │   ├── Dark theme CSS
+│   │   ├── Responsive design
+│   │   ├── Color scheme (purple/pink)
+│   │   ├── Print-friendly styles
+│   │   └── Mobile-optimized
+│   │
+│   ├── journal.html                     (Main journal layout)
+│   │   ├── Header with metadata
+│   │   ├── Market overview section
+│   │   ├── News articles section
+│   │   ├── Footer
+│   │   └── Dynamic content rendering
+│   │
+│   ├── news_section.html                (News component)
+│   │   ├── Article title
+│   │   ├── Source & category badges
+│   │   ├── Published date
+│   │   ├── Article description
+│   │   └── External link
+│   │
+│   └── market_section.html              (Market component)
+│       ├── Price cards
+│       ├── Change indicators
+│       ├── Color-coded (green/red)
+│       └── Responsive grid layout
+│
+└── 📁 data/                             (Data storage)
+    ├── .gitkeep                         (Directory marker)
+    └── finwiz.db                        (SQLite database - auto-created)
+        ├── news_articles table          (News records)
+        ├── market_data table            (Price records)
+        └── generated_journals table     (Journal history)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          STREAMLIT APP STRUCTURE                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+app.py (Main Application)
+│
+├── 🎨 Configuration
+│   ├── Page config (title, icon, layout)
+│   ├── Custom CSS (dark theme)
+│   └── Session state management
+│
+├── 📌 Sidebar
+│   ├── Settings panel
+│   ├── Content statistics
+│   ├── Configuration options
+│   └── Help section
+│
+└── 📑 Main Tabs
+    │
+    ├── Tab 1: 📈 Dashboard
+    │   ├── Metrics display
+    │   │   ├── Pending news
+    │   │   ├── Approved news
+    │   │   ├── Pending market data
+    │   │   └── Approved market data
+    │   ├── Recent news list
+    │   ├── Recent market data table
+    │   └── Action buttons
+    │
+    ├── Tab 2: 📥 Fetch Data
+    │   ├── News fetching section
+    │   │   ├── Fetch button
+    │   │   └── Available sources list
+    │   ├── Market data fetching section
+    │   │   ├── Fetch button
+    │   │   └── Available symbols list
+    │   └── Data preview section
+    │       ├── Pending news expanders
+    │       └── Pending market data table
+    │
+    ├── Tab 3: ✅ Approve Content
+    │   ├── News approval section
+    │   │   ├── Bulk action buttons
+    │   │   ├── Individual article cards
+    │   │   └── Approve/Reject buttons per article
+    │   └── Market data approval section
+    │       ├── Bulk action buttons
+    │       ├── Data table
+    │       └── Quick approve/reject buttons
+    │
+    └── Tab 4: 📄 Generate Journal
+        ├── Approval stats display
+        ├── Generate button
+        ├── Success message
+        ├── Download button
+        ├── Preview option
+        ├── Clear content option
+        └── Journal history
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                             DATA FLOW DIAGRAM                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+   RSS Feeds (4 sources)      Yahoo Finance API
+           │                          │
+           └──────────────┬───────────┘
+                          │
+                ┌─────────▼────────────┐
+                │  news_fetcher.py    │
+                │  market_data.py     │
+                │  (Data Fetching)    │
+                └─────────┬────────────┘
+                          │
+         (Store with status: pending)
+                          │
+                ┌─────────▼────────────┐
+                │   database.py       │
+                │   (SQLite DB)       │
+                │   - news_articles   │
+                │   - market_data     │
+                └─────────┬────────────┘
+                          │
+            ┌─────────────▼──────────────┐
+            │  Streamlit UI (app.py)     │
+            │  - Review & approve        │
+            │  - User interactions       │
+            └─────────────┬──────────────┘
+                          │
+         (Update status: approved)
+                          │
+                ┌─────────▼────────────┐
+                │journal_generator.py │
+                │(Jinja2 Rendering)  │
+                │- Base template     │
+                │- News section      │
+                │- Market section    │
+                └─────────┬────────────┘
+                          │
+                ┌─────────▼────────────┐
+                │  HTML Output        │
+                │  journal_*.html     │
+                │  (Download & Save)  │
+                └─────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          DATABASE SCHEMA                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+news_articles Table:
+├── id (INTEGER, PRIMARY KEY)
+├── title (TEXT, NOT NULL)
+├── description (TEXT)
+├── link (TEXT, UNIQUE)
+├── source (TEXT)
+├── published_date (TIMESTAMP)
+├── fetched_date (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP)
+├── approved (INTEGER, DEFAULT 0)
+├── category (TEXT)
+└── content_json (TEXT)
+
+market_data Table:
+├── id (INTEGER, PRIMARY KEY)
+├── symbol (TEXT, NOT NULL)
+├── price (REAL)
+├── change_percent (REAL)
+├── change_value (REAL)
+├── fetched_date (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP)
+├── approved (INTEGER, DEFAULT 0)
+└── data_json (TEXT)
+
+generated_journals Table:
+├── id (INTEGER, PRIMARY KEY)
+├── created_date (TIMESTAMP, DEFAULT CURRENT_TIMESTAMP)
+├── file_path (TEXT)
+├── news_count (INTEGER)
+├── market_data_count (INTEGER)
+└── metadata_json (TEXT)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            FILE STATISTICS                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Documentation Files:        3 files
+  - README.md              (~200 lines)
+  - SETUP.md               (~400 lines)
+  - PROJECT_SUMMARY.md     (~500 lines)
+
+Python Code:               5 files
+  - app.py                 (~550 lines)
+  - news_fetcher.py        (~90 lines)
+  - market_data.py         (~150 lines)
+  - database.py            (~220 lines)
+  - journal_generator.py   (~90 lines)
+
+HTML Templates:            4 files
+  - base.html              (~250 lines)
+  - journal.html           (~100 lines)
+  - news_section.html      (~30 lines)
+  - market_section.html    (~20 lines)
+
+Configuration Files:       3 files
+  - requirements.txt       (7 packages)
+  - run.bat                (~20 lines)
+  - run.sh                 (~20 lines)
+
+Markers & Structure:       2 files
+  - .gitignore             (~30 lines)
+  - STRUCTURE.txt          (This file)
+
+TOTAL:                     20 files, ~2500+ lines of code
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         QUICK NAVIGATION GUIDE                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+To modify...                        Edit this file...
+─────────────────────────────────────────────────────────────
+News sources                    → modules/news_fetcher.py
+Stock symbols                   → modules/market_data.py
+HTML design & colors            → templates/base.html
+Journal layout                  → templates/journal.html
+Database operations             → modules/database.py
+Streamlit interface             → app.py
+Installation instructions       → SETUP.md
+Quick start                     → run.bat or run.sh
+Dependencies                    → requirements.txt
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              KEY FEATURES                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+✅ News Fetching
+   • 4 RSS feed sources
+   • Auto duplicate detection
+   • Category classification
+   • Metadata preservation
+
+✅ Market Data
+   • Real-time prices
+   • 8+ stock symbols
+   • Price change tracking
+   • Sector performance
+
+✅ User Interface
+   • 4-tab Streamlit dashboard
+   • Real-time statistics
+   • Preview functionality
+   • Bulk operations
+
+✅ Approval Workflow
+   • Individual approvals
+   • Bulk approvals
+   • Status tracking
+   • Content management
+
+✅ Journal Generation
+   • Professional HTML output
+   • Jinja2 templating
+   • Dark theme design
+   • Responsive layout
+   • PDF printable
+   • Direct download
+
+✅ Data Management
+   • SQLite database
+   • Automatic schema creation
+   • Query optimization
+   • Metadata tracking
+   • History records
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            DEPENDENCIES                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Web Framework:           Streamlit 1.28.1
+Data Processing:        Pandas 2.0.3
+Market Data:            yfinance 0.2.32
+RSS Parsing:            feedparser 6.0.10
+HTML Templating:        Jinja2 3.1.2
+Date Utilities:         python-dateutil 2.8.2
+HTTP Requests:          requests 2.31.0
+
+Database:               SQLite 3 (built-in)
+Language:               Python 3.8+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          WORKFLOW SUMMARY                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. START APP
+   run.bat (Windows) or run.sh (macOS/Linux)
+                    ↓
+2. FETCH DATA
+   • Click "Fetch News" → Collects from 4 RSS feeds
+   • Click "Fetch Market" → Gets prices from Yahoo Finance
+   • Data stored in SQLite with status = 0 (pending)
+                    ↓
+3. REVIEW
+   • Dashboard tab shows statistics
+   • Fetch Data tab previews content
+   • View counts, sources, categories
+                    ↓
+4. APPROVE
+   • Individual approve/reject buttons
+   • Bulk operations for efficiency
+   • Status updated to 1 (approved)
+                    ↓
+5. GENERATE
+   • Click "Generate Journal"
+   • System queries approved content
+   • Jinja2 renders HTML
+   • File saved with timestamp
+                    ↓
+6. DOWNLOAD
+   • Download button appears
+   • Save to computer
+   • Open in browser or share
+                    ↓
+7. OPTIONAL: CLEAR
+   • Auto-clear approved content
+   • Reset for next journal
+   • Database remains intact
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     END OF STRUCTURE DOCUMENT                               │
+│                           Happy Journaling! 📊                              │
+└─────────────────────────────────────────────────────────────────────────────┘

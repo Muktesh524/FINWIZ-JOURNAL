@@ -1,0 +1,17 @@
+{% if market_data %}
+<div class="mover-grid">
+    {% for data in market_data %}
+    <div class="mover-card {% if data.change_percent >= 0 %}positive{% else %}negative{% endif %}">
+        <div class="mover-symbol">{{ data.display_name or data.symbol }}</div>
+        <div class="mover-price">₹{{ data.price }}</div>
+        <div class="mover-change">
+            {% if data.change_percent >= 0 %}
+                ↑ +{{ data.change_percent }}%
+            {% else %}
+                ↓ {{ data.change_percent }}%
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}

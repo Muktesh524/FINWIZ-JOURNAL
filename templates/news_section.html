@@ -1,0 +1,21 @@
+{% for article in news_articles %}
+<div class="article">
+    <h3>
+        <a href="{{ article.link }}" target="_blank">{{ article.title }}</a>
+    </h3>
+
+    <div class="article-meta">
+        <span class="source-badge">{{ article.source }}</span>
+        {% if article.category %}
+        <span class="category-badge">{{ article.category }}</span>
+        {% endif %}
+        {% if article.published_date %}
+        <span>📅 {{ article.published_date }}</span>
+        {% endif %}
+    </div>
+
+    {% if article.description %}
+    <p class="article-description">{{ article.description }}</p>
+    {% endif %}
+</div>
+{% endfor %}
