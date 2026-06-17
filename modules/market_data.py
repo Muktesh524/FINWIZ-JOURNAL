@@ -1,72 +1,97 @@
-"""Fetch market data using yfinance."""
+"""Fetch market data using yfinance - Focused on Nifty 50."""
 
 import yfinance as yf
-import json
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 
 
 class MarketDataFetcher:
-    """Fetch market data from Yahoo Finance."""
+    """Fetch market data from Yahoo Finance (India NSE)."""
 
-    # Default Indian stock market symbols
-    DEFAULT_SYMBOLS = {
-        "NIFTY_50": "^NSEI",
-        "SENSEX": "^BSESN",
-        "BANK_NIFTY": "^NSEBANK",
-        "RELIANCE": "RELIANCE.NS",
-        "TCS": "TCS.NS",
-        "INFY": "INFY.NS",
-        "ICICI_BANK": "ICICIBANK.NS",
-        "HDFC_BANK": "HDFCBANK.NS",
-    }
+    # Nifty 50 constituent stocks (top companies)
+    NIFTY_50_SYMBOLS = [
+        ("RELIANCE", "RELIANCE.NS"),
+        ("TCS", "TCS.NS"),
+        ("INFY", "INFY.NS"),
+        ("HDFC Bank", "HDFCBANK.NS"),
+        ("ICICI Bank", "ICICIBANK.NS"),
+        ("Axis Bank", "AXISBANK.NS"),
+        ("Kotak Bank", "KOTAKBANK.NS"),
+        ("HDFC", "HDFC.NS"),
+        ("Wipro", "WIPRO.NS"),
+        ("HCL Tech", "HCLTECH.NS"),
+        ("LT", "LT.NS"),
+        ("Maruti", "MARUTI.NS"),
+        ("Bharti Airtel", "BHARTIARTL.NS"),
+        ("ITC", "ITC.NS"),
+        ("NTPC", "NTPC.NS"),
+        ("Power Grid", "POWERGRID.NS"),
+        ("SBI", "SBIN.NS"),
+        ("Sun Pharma", "SUNPHARMA.NS"),
+        ("Bajaj Auto", "BAJAJAUT0.NS"),
+        ("Nestlé India", "NESTLEIND.NS"),
+    ]
 
-    def __init__(self, symbols: Optional[Dict[str, str]] = None):
-        """Initialize with custom symbols or use defaults."""
-        self.symbols = symbols or self.DEFAULT_SYMBOLS
+    def __init__(self):
+        """Initialize market data fetcher."""
+        self.nifty_index = "^NSEI"
+        self.sensex_index = "^BSESN"
 
-    def fetch_market_data(self) -> List[Dict]:
-        """Fetch current market data for all symbols."""
-        market_data = []
+    def fetch_nifty_50_movers(self, top_n: int = 5) -> Tuple[List[Dict], List[Dict], Dict]:
+        """
+        Fetch Nifty 50 stocks and return top gainers and losers.
+        Returns (gainers, losers, stats)
+        """
+        all_data = []
+        stats = {"fetched": 0, "errors": 0}
 
-        for name, symbol in self.symbols.items():
+        for display_name, symbol in self.NIFTY_50_SYMBOLS:
             try:
-                data = self.fetch_single_symbol(symbol)
-                if data:
-                    data["display_name"] = name
-                    market_data.append(data)
+                stock_data = self._fetch_single_stock(symbol, display_name)
+                if stock_data:
+                    all_data.append(stock_data)
+                    stats["fetched"] += 1
             except Exception as e:
+                stats["errors"] += 1
                 print(f"Error fetching {symbol}: {str(e)}")
 
-        return market_data
+        # Sort by change percent
+        all_data.sort(key=lambda x: x["change_percent"], reverse=True)
 
-    def fetch_single_symbol(self, symbol: str) -> Optional[Dict]:
-        """Fetch data for a single symbol."""
+        # Top gainers and losers
+        gainers = all_data[:top_n]
+        losers = all_data[-top_n:][::-1]  # Reverse to show worst first
+
+        return gainers, losers, stats
+
+    def _fetch_single_stock(self, symbol: str, display_name: str) -> Optional[Dict]:
+        """Fetch current price data for a single stock."""
         try:
             ticker = yf.Ticker(symbol)
-            hist = ticker.history(period="1d")
 
-            if hist.empty:
+            # Get 2 days of history for previous close
+            hist = ticker.history(period="5d")
+
+            if hist.empty or len(hist) < 1:
                 return None
 
             current_price = hist["Close"].iloc[-1]
 
-            # Fetch previous close for comparison
-            hist_2d = ticker.history(period="2d")
-            if len(hist_2d) >= 2:
-                previous_price = hist_2d["Close"].iloc[-2]
-                change_value = current_price - previous_price
-                change_percent = (change_value / previous_price * 100) if previous_price != 0 else 0
+            # Get previous close (yesterday)
+            if len(hist) >= 2:
+                previous_price = hist["Close"].iloc[-2]
             else:
                 previous_price = current_price
-                change_value = 0
-                change_percent = 0
+
+            change_value = current_price - previous_price
+            change_percent = (change_value / previous_price * 100) if previous_price != 0 else 0
 
             return {
                 "symbol": symbol,
-                "price": round(current_price, 2),
-                "change_value": round(change_value, 2),
-                "change_percent": round(change_percent, 2),
+                "display_name": display_name,
+                "price": round(float(current_price), 2),
+                "change_value": round(float(change_value), 2),
+                "change_percent": round(float(change_percent), 2),
                 "currency": "INR",
                 "timestamp": datetime.now().isoformat(),
             }
@@ -74,77 +99,89 @@ class MarketDataFetcher:
             print(f"Error fetching {symbol}: {str(e)}")
             return None
 
-    def get_nifty_movers(self, top_n: int = 5) -> Dict[str, List[Dict]]:
-        """Get top gainers and losers for the day."""
-        movers = {"gainers": [], "losers": []}
+    def fetch_index_data(self) -> Dict[str, Dict]:
+        """Fetch Nifty 50 and Sensex index data."""
+        indices = {}
 
-        symbols_to_check = [
-            ("RELIANCE", "RELIANCE.NS"),
-            ("TCS", "TCS.NS"),
-            ("INFY", "INFY.NS"),
-            ("ICICI_BANK", "ICICIBANK.NS"),
-            ("HDFC_BANK", "HDFCBANK.NS"),
-            ("WIPRO", "WIPRO.NS"),
-            ("AXIS_BANK", "AXISBANK.NS"),
-            ("LT", "LT.NS"),
-            ("MARUTI", "MARUTI.NS"),
-            ("BAJAJ_AUTO", "BAJAJAUT0.NS"),
-        ]
+        # Fetch Nifty 50
+        try:
+            nifty_data = self._fetch_index(self.nifty_index, "Nifty 50")
+            if nifty_data:
+                indices["nifty_50"] = nifty_data
+        except Exception as e:
+            print(f"Error fetching Nifty 50: {str(e)}")
 
-        data = []
-        for name, symbol in symbols_to_check:
-            try:
-                stock_data = self.fetch_single_symbol(symbol)
-                if stock_data:
-                    stock_data["display_name"] = name
-                    data.append(stock_data)
-            except:
-                pass
+        # Fetch Sensex
+        try:
+            sensex_data = self._fetch_index(self.sensex_index, "Sensex")
+            if sensex_data:
+                indices["sensex"] = sensex_data
+        except Exception as e:
+            print(f"Error fetching Sensex: {str(e)}")
 
-        # Sort by change percent
-        data.sort(key=lambda x: x["change_percent"], reverse=True)
+        return indices
 
-        # Top gainers and losers
-        movers["gainers"] = data[:top_n]
-        movers["losers"] = data[-top_n:][::-1]  # Reverse to show worst first
+    def _fetch_index(self, symbol: str, name: str) -> Optional[Dict]:
+        """Fetch index data."""
+        try:
+            ticker = yf.Ticker(symbol)
+            hist = ticker.history(period="5d")
 
-        return movers
+            if hist.empty or len(hist) < 1:
+                return None
 
-    def get_sector_performance(self) -> Dict[str, float]:
-        """Get sector-wise performance data."""
-        sectors = {
-            "IT": "^CNXIT",
-            "Banking": "^CNXBANK",
-            "Auto": "^CNXAUTO",
-            "Pharma": "^CNXPHARMA",
-            "FMCG": "^CNXFMCG",
+            current = hist["Close"].iloc[-1]
+            previous = hist["Close"].iloc[-2] if len(hist) >= 2 else current
+
+            change = current - previous
+            change_percent = (change / previous * 100) if previous != 0 else 0
+
+            return {
+                "name": name,
+                "symbol": symbol,
+                "value": round(float(current), 2),
+                "change": round(float(change), 2),
+                "change_percent": round(float(change_percent), 2),
+                "timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            print(f"Error fetching index {symbol}: {str(e)}")
+            return None
+
+    def fetch_all_market_data(self) -> Dict:
+        """Fetch all market data (indices + movers)."""
+        gainers, losers, stats = self.fetch_nifty_50_movers(top_n=5)
+        indices = self.fetch_index_data()
+
+        return {
+            "indices": indices,
+            "gainers": gainers,
+            "losers": losers,
+            "stats": stats,
+            "timestamp": datetime.now().isoformat(),
         }
-
-        performance = {}
-        for sector_name, sector_index in sectors.items():
-            try:
-                ticker = yf.Ticker(sector_index)
-                hist = ticker.history(period="2d")
-
-                if not hist.empty and len(hist) >= 2:
-                    current = hist["Close"].iloc[-1]
-                    previous = hist["Close"].iloc[-2]
-                    change_percent = ((current - previous) / previous * 100) if previous != 0 else 0
-                    performance[sector_name] = round(change_percent, 2)
-            except:
-                pass
-
-        return performance
 
 
 if __name__ == "__main__":
     fetcher = MarketDataFetcher()
-    data = fetcher.fetch_market_data()
-    print("Market Data:")
-    for item in data[:3]:
-        print(f"{item['display_name']}: {item['price']} ({item['change_percent']}%)")
 
-    print("\nNifty Movers:")
-    movers = fetcher.get_nifty_movers()
-    print("Top Gainers:", movers["gainers"][:2])
-    print("Top Losers:", movers["losers"][:2])
+    print("🔄 Fetching Market Data...\n")
+
+    # Fetch indices
+    print("📊 Market Indices:")
+    indices = fetcher.fetch_index_data()
+    for key, data in indices.items():
+        if data:
+            print(f"  {data['name']}: {data['value']} ({data['change_percent']:+.2f}%)")
+
+    # Fetch movers
+    print("\n📈 Top 5 Gainers:")
+    gainers, losers, stats = fetcher.fetch_nifty_50_movers()
+    for i, stock in enumerate(gainers, 1):
+        print(f"  {i}. {stock['display_name']}: ₹{stock['price']} ({stock['change_percent']:+.2f}%)")
+
+    print("\n📉 Top 5 Losers:")
+    for i, stock in enumerate(losers, 1):
+        print(f"  {i}. {stock['display_name']}: ₹{stock['price']} ({stock['change_percent']:+.2f}%)")
+
+    print(f"\n✅ Fetched: {stats['fetched']} stocks, Errors: {stats['errors']}")

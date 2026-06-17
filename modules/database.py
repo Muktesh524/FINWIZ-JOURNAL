@@ -66,8 +66,8 @@ class JournalDB:
             conn.commit()
 
     def add_news(self, title: str, description: str, link: str, source: str,
-                 published_date: Optional[str] = None, category: str = "General") -> int:
-        """Add a news article to the database."""
+                 published_date: Optional[str] = None, category: str = "General") -> tuple:
+        """Add a news article. Returns (id, success, message)."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             try:
@@ -76,22 +76,81 @@ class JournalDB:
                     VALUES (?, ?, ?, ?, ?, ?)
                 """, (title, description, link, source, published_date, category))
                 conn.commit()
-                return cursor.lastrowid
+                return cursor.lastrowid, True, "Article added successfully"
             except sqlite3.IntegrityError:
-                # Link already exists
-                return -1
+                return -1, False, "Article already exists (duplicate link)"
+            except Exception as e:
+                return -1, False, f"Error: {str(e)}"
 
     def add_market_data(self, symbol: str, price: float, change_percent: float,
-                       change_value: float, data_json: Optional[str] = None) -> int:
-        """Add market data to the database."""
+                       change_value: float, data_type: str = "stock", data_json: Optional[str] = None) -> tuple:
+        """Add market data. Returns (id, success, message)."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO market_data (symbol, price, change_percent, change_value, data_json)
-                VALUES (?, ?, ?, ?, ?)
-            """, (symbol, price, change_percent, change_value, data_json))
+            try:
+                cursor.execute("""
+                    INSERT INTO market_data (symbol, price, change_percent, change_value, data_json)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (symbol, price, change_percent, change_value, data_json))
+                conn.commit()
+                return cursor.lastrowid, True, "Market data added successfully"
+            except Exception as e:
+                return -1, False, f"Error: {str(e)}"
+
+    def add_multiple_news(self, articles: List[Dict]) -> Dict[str, Any]:
+        """Add multiple news articles. Returns stats dict."""
+        stats = {"added": 0, "duplicates": 0, "errors": 0}
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            for article in articles:
+                try:
+                    cursor.execute("""
+                        INSERT INTO news_articles (title, description, link, source, published_date, category)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (
+                        article.get("title", ""),
+                        article.get("description", ""),
+                        article.get("link", ""),
+                        article.get("source", ""),
+                        article.get("published_date"),
+                        article.get("category", "General"),
+                    ))
+                    stats["added"] += 1
+                except sqlite3.IntegrityError:
+                    stats["duplicates"] += 1
+                except Exception as e:
+                    stats["errors"] += 1
+
             conn.commit()
-            return cursor.lastrowid
+
+        return stats
+
+    def add_multiple_market_data(self, market_data_list: List[Dict]) -> Dict[str, Any]:
+        """Add multiple market data entries. Returns stats dict."""
+        stats = {"added": 0, "errors": 0}
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            for data in market_data_list:
+                try:
+                    cursor.execute("""
+                        INSERT INTO market_data (symbol, price, change_percent, change_value, data_json)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (
+                        data.get("symbol") or data.get("display_name"),
+                        data.get("price", 0),
+                        data.get("change_percent", 0),
+                        data.get("change_value", 0),
+                        json.dumps(data),
+                    ))
+                    stats["added"] += 1
+                except Exception as e:
+                    stats["errors"] += 1
+
+            conn.commit()
+
+        return stats
 
     def get_unapproved_news(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Get all unapproved news articles."""
@@ -172,6 +231,63 @@ class JournalDB:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM market_data WHERE id = ?", (data_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def update_news(self, news_id: int, title: Optional[str] = None,
+                   description: Optional[str] = None) -> bool:
+        """Update a news article's title and/or description."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            updates = []
+            params = []
+
+            if title is not None:
+                updates.append("title = ?")
+                params.append(title)
+
+            if description is not None:
+                updates.append("description = ?")
+                params.append(description)
+
+            if not updates:
+                return False
+
+            params.append(news_id)
+            query = f"UPDATE news_articles SET {', '.join(updates)} WHERE id = ?"
+
+            cursor.execute(query, params)
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def update_market_data(self, data_id: int, price: Optional[float] = None,
+                          change_percent: Optional[float] = None,
+                          change_value: Optional[float] = None) -> bool:
+        """Update market data price and changes."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            updates = []
+            params = []
+
+            if price is not None:
+                updates.append("price = ?")
+                params.append(price)
+
+            if change_percent is not None:
+                updates.append("change_percent = ?")
+                params.append(change_percent)
+
+            if change_value is not None:
+                updates.append("change_value = ?")
+                params.append(change_value)
+
+            if not updates:
+                return False
+
+            params.append(data_id)
+            query = f"UPDATE market_data SET {', '.join(updates)} WHERE id = ?"
+
+            cursor.execute(query, params)
             conn.commit()
             return cursor.rowcount > 0
 

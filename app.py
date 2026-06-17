@@ -111,6 +111,37 @@ tab1, tab2, tab3, tab4 = st.tabs(["📈 Dashboard", "📥 Fetch Data", "✅ Appr
 with tab1:
     st.header("Dashboard")
 
+    # Quick fetch button
+    col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 3])
+    with col_btn1:
+        if st.button("⚡ Fetch Latest Data", key="quick_fetch", use_container_width=True):
+            with st.spinner("🔄 Fetching news and market data..."):
+                try:
+                    # Fetch news
+                    news_articles, news_stats = st.session_state.news_fetcher.fetch_all_news(
+                        limit_per_feed=limit_per_feed
+                    )
+                    news_added = st.session_state.db.add_multiple_news(news_articles)
+
+                    # Fetch market data
+                    all_market = st.session_state.market_fetcher.fetch_all_market_data()
+                    market_gainers = all_market.get("gainers", [])
+                    market_losers = all_market.get("losers", [])
+                    all_market_data = market_gainers + market_losers
+
+                    market_added = st.session_state.db.add_multiple_market_data(all_market_data)
+
+                    # Show success message
+                    st.success(f"""
+                    ✅ Data fetched successfully!
+                    📰 News: {news_added['added']} added, {news_added['duplicates']} duplicates
+                    📈 Market: {market_added['added']} stocks added
+                    """)
+
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error fetching data: {str(e)}")
+
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Pending News", stats["unapproved_news"], delta=None)
@@ -168,54 +199,74 @@ with tab2:
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("📰 Fetch News")
-        if st.button("🔄 Fetch News from RSS Feeds", key="fetch_news"):
-            with st.spinner("Fetching news from feeds..."):
-                fetched_news = st.session_state.news_fetcher.fetch_all_news(
-                    limit_per_feed=limit_per_feed
-                )
-                added_count = 0
-                for news in fetched_news:
-                    result = st.session_state.db.add_news(
-                        title=news["title"],
-                        description=news["description"],
-                        link=news["link"],
-                        source=news["source"],
-                        published_date=news.get("published_date"),
-                        category=news.get("category", "General"),
+        st.subheader("📰 Fetch News from RSS Feeds")
+        if st.button("🔄 Fetch News", key="fetch_news", use_container_width=True):
+            with st.spinner("Fetching news from RSS feeds..."):
+                try:
+                    fetched_news, news_stats = st.session_state.news_fetcher.fetch_all_news(
+                        limit_per_feed=limit_per_feed
                     )
-                    if result != -1:
-                        added_count += 1
 
-                st.success(f"✅ Added {added_count} new articles (duplicates skipped)")
+                    if fetched_news:
+                        stats = st.session_state.db.add_multiple_news(fetched_news)
+                        st.success(f"""
+                        ✅ News Fetch Complete!
+                        • Fetched: {news_stats['total_fetched']} entries
+                        • Unique: {len(fetched_news)} articles
+                        • Added to DB: {stats['added']}
+                        • Duplicates: {stats['duplicates']}
+                        • Errors: {stats['errors']}
+                        """)
+                    else:
+                        st.warning("No news articles fetched. Please check internet connection.")
+
+                except Exception as e:
+                    st.error(f"Error fetching news: {str(e)}")
 
         st.markdown("---")
-        st.write("**Available News Sources:**")
+        st.write("**📰 Configured News Sources:**")
         for source in st.session_state.news_fetcher.feeds.keys():
-            st.write(f"- {source}")
+            st.write(f"  • {source}")
 
     with col2:
-        st.subheader("📈 Fetch Market Data")
-        if st.button("🔄 Fetch Market Data", key="fetch_market"):
-            with st.spinner("Fetching market data..."):
-                market_data = st.session_state.market_fetcher.fetch_market_data()
-                added_count = 0
-                for data in market_data:
-                    result = st.session_state.db.add_market_data(
-                        symbol=data["symbol"],
-                        price=data["price"],
-                        change_percent=data["change_percent"],
-                        change_value=data["change_value"],
-                    )
-                    if result != -1:
-                        added_count += 1
+        st.subheader("📈 Fetch Nifty 50 Market Data")
+        if st.button("🔄 Fetch Market Data", key="fetch_market", use_container_width=True):
+            with st.spinner("Fetching Nifty 50 market data..."):
+                try:
+                    market_data_result = st.session_state.market_fetcher.fetch_all_market_data()
 
-                st.success(f"✅ Added {added_count} market data points")
+                    gainers = market_data_result.get("gainers", [])
+                    losers = market_data_result.get("losers", [])
+                    indices = market_data_result.get("indices", {})
+                    stats = market_data_result.get("stats", {})
+
+                    all_market_data = gainers + losers
+
+                    if all_market_data:
+                        market_stats = st.session_state.db.add_multiple_market_data(all_market_data)
+                        st.success(f"""
+                        ✅ Market Data Fetch Complete!
+                        • Fetched: {stats.get('fetched', 0)} stocks
+                        • Added to DB: {market_stats['added']}
+                        • Errors: {market_stats['errors']}
+                        """)
+
+                        # Show indices
+                        if indices:
+                            st.info("📊 Market Indices:")
+                            for key, data in indices.items():
+                                if data:
+                                    direction = "📈" if data["change_percent"] >= 0 else "📉"
+                                    st.write(f"{direction} {data['name']}: {data['value']} ({data['change_percent']:+.2f}%)")
+                    else:
+                        st.warning("No market data fetched. Please check internet connection.")
+
+                except Exception as e:
+                    st.error(f"Error fetching market data: {str(e)}")
 
         st.markdown("---")
-        st.write("**Available Symbols:**")
-        for name, symbol in st.session_state.market_fetcher.symbols.items():
-            st.write(f"- {name}: {symbol}")
+        st.write("**📈 Nifty 50 Stocks Tracked:**")
+        st.write(f"Total: {len(st.session_state.market_fetcher.NIFTY_50_SYMBOLS)} stocks")
 
     st.markdown("---")
 
@@ -233,18 +284,36 @@ with tab2:
                 with st.expander(f"📄 {news['title'][:50]}..."):
                     st.write(f"**Source:** {news['source']}")
                     st.write(f"**Category:** {news['category']}")
+                    st.write(f"**Published:** {news.get('published_date', 'N/A')[:10]}")
                     st.write(f"**Description:** {news['description'][:200]}...")
                     st.write(f"**Link:** [{news['link']}]({news['link']})")
         else:
             st.info("No pending news articles")
 
     with col2:
-        st.write("**Pending Market Data**")
+        st.write("**Pending Market Data (Top Gainers & Losers)**")
         pending_market = st.session_state.db.get_unapproved_market_data()
         if pending_market:
             df = pd.DataFrame(pending_market)
+
+            # Separate gainers and losers
+            df_sorted = df.sort_values('change_percent', ascending=False)
+
+            st.write(f"📈 **Top 5 Gainers:**")
+            gainers = df_sorted.head(5)
+            for _, row in gainers.iterrows():
+                color = "🟢" if row['change_percent'] >= 0 else "🔴"
+                st.write(f"{color} {row['symbol']}: ₹{row['price']:.2f} ({row['change_percent']:+.2f}%)")
+
+            st.write(f"\n📉 **Top 5 Losers:**")
+            losers = df_sorted.tail(5)
+            for _, row in losers.iterrows():
+                color = "🟢" if row['change_percent'] >= 0 else "🔴"
+                st.write(f"{color} {row['symbol']}: ₹{row['price']:.2f} ({row['change_percent']:+.2f}%)")
+
+            st.write(f"\n**Full Data Table ({len(pending_market)} items):**")
             st.dataframe(
-                df[['symbol', 'price', 'change_value', 'change_percent']].head(10),
+                df[['symbol', 'price', 'change_value', 'change_percent']].sort_values('change_percent', ascending=False),
                 use_container_width=True,
                 hide_index=True
             )
